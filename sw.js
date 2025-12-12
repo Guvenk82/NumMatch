@@ -1,5 +1,5 @@
 // Service Worker for NumMatch PWA
-const CACHE_NAME = 'nummatch-v1';
+const CACHE_NAME = 'nummatch-v2';
 const urlsToCache = [
   './',
   './index.html',
@@ -84,7 +84,10 @@ self.addEventListener('activate', (event) => {
             return caches.delete(cacheName);
           }
         })
-      );
+      ).then(() => {
+        // Force update by claiming all clients
+        return self.clients.claim();
+      });
     })
   );
 });

@@ -680,12 +680,22 @@ if ('serviceWorker' in navigator) {
     
     if (isSecure) {
         window.addEventListener('load', () => {
-            // Try to register service worker, but don't block if it fails
-            navigator.serviceWorker.register('./sw.js', {
-                scope: './'
+            // Unregister old service workers first
+            navigator.serviceWorker.getRegistrations().then((registrations) => {
+                for (let registration of registrations) {
+                    registration.unregister();
+                }
+            }).then(() => {
+                // Register new service worker
+                return navigator.serviceWorker.register('./sw.js', {
+                    scope: './',
+                    updateViaCache: 'none' // Always check for updates
+                });
             })
             .then((registration) => {
                 console.log('ServiceWorker registered:', registration);
+                // Force update check
+                registration.update();
             })
             .catch((error) => {
                 console.log('ServiceWorker registration failed (non-critical):', error);
