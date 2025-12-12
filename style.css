@@ -262,6 +262,10 @@ body {
     -webkit-touch-callout: none;
     /* Prevent tap highlight */
     -webkit-tap-highlight-color: transparent;
+    /* Smooth transitions for touch */
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    /* Make cells more touch-friendly */
+    touch-action: none;
 }
 
 .cell.has-number:active {

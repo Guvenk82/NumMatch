@@ -129,11 +129,11 @@ class NumMatchGame {
                 cell.addEventListener('dragend', () => this.handleDragEnd());
                 cell.addEventListener('dragleave', () => this.handleDragLeave(row, col));
                 
-                // Touch event listeners (mobile)
+                // Touch event listeners (mobile) - improved for better responsiveness
                 cell.addEventListener('touchstart', (e) => this.handleTouchStart(e, row, col), { passive: false });
                 cell.addEventListener('touchmove', (e) => this.handleTouchMove(e, row, col), { passive: false });
                 cell.addEventListener('touchend', (e) => this.handleTouchEnd(e, row, col), { passive: false });
-                cell.addEventListener('touchcancel', () => this.handleTouchEnd(null, row, col), { passive: false });
+                cell.addEventListener('touchcancel', (e) => this.handleTouchEnd(e, row, col), { passive: false });
                 
                 gameBoard.appendChild(cell);
             }
