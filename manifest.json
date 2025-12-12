@@ -1,0 +1,12 @@
+{
+  "name": "NumMatch - Sayı Eşleştirme Oyunu",
+  "short_name": "NumMatch",
+  "description": "Eğlenceli sayı eşleştirme oyunu",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1e3c72",
+  "theme_color": "#667eea",
+  "orientation": "portrait"
+}
+
