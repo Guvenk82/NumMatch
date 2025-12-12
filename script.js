@@ -12,6 +12,9 @@ class NumMatchGame {
         
         this.draggedCell = null;
         this.dragOverCell = null;
+        this.touchStartCell = null;
+        this.touchStartX = null;
+        this.touchStartY = null;
         
         this.loadBestScore();
         this.init();
@@ -119,12 +122,18 @@ class NumMatchGame {
                 cell.dataset.row = row;
                 cell.dataset.col = col;
                 
-                // Drag and drop event listeners
+                // Drag and drop event listeners (mouse)
                 cell.addEventListener('dragstart', (e) => this.handleDragStart(e, row, col));
                 cell.addEventListener('dragover', (e) => this.handleDragOver(e, row, col));
                 cell.addEventListener('drop', (e) => this.handleDrop(e, row, col));
                 cell.addEventListener('dragend', () => this.handleDragEnd());
                 cell.addEventListener('dragleave', () => this.handleDragLeave(row, col));
+                
+                // Touch event listeners (mobile)
+                cell.addEventListener('touchstart', (e) => this.handleTouchStart(e, row, col), { passive: false });
+                cell.addEventListener('touchmove', (e) => this.handleTouchMove(e, row, col), { passive: false });
+                cell.addEventListener('touchend', (e) => this.handleTouchEnd(e, row, col), { passive: false });
+                cell.addEventListener('touchcancel', () => this.handleTouchEnd(null, row, col), { passive: false });
                 
                 gameBoard.appendChild(cell);
             }
@@ -587,7 +596,7 @@ window.addEventListener('DOMContentLoaded', () => {
             console.error('startGameBtn not found');
         }
         
-        // Prevent zoom on double tap (iOS)
+        // Prevent zoom on double tap and scrolling (iOS/Android)
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (event) => {
             const now = Date.now();
@@ -595,7 +604,22 @@ window.addEventListener('DOMContentLoaded', () => {
                 event.preventDefault();
             }
             lastTouchEnd = now;
-        }, false);
+        }, { passive: false });
+        
+        // Prevent scrolling while dragging
+        document.addEventListener('touchmove', (event) => {
+            // Only prevent if we're dragging a cell
+            if (currentGame && currentGame.draggedCell) {
+                event.preventDefault();
+            }
+        }, { passive: false });
+        
+        // Prevent pull-to-refresh on mobile
+        document.body.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
         
         console.log('Initialization complete');
     } catch (error) {
