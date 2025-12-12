@@ -495,10 +495,140 @@ class NumMatchGame {
         // Tüm drag-over sınıflarını temizle
         document.querySelectorAll('.cell').forEach(cell => {
             cell.classList.remove('drag-over');
+            cell.classList.remove('dragging');
         });
         
         this.draggedCell = null;
         this.dragOverCell = null;
+    }
+    
+    // Touch event handlers for mobile - simplified and improved
+    handleTouchStart(e, row, col) {
+        // Don't allow moves when paused
+        if (this.isPaused) {
+            return;
+        }
+        
+        if (this.grid[row][col] === null) {
+            return;
+        }
+        
+        // Prevent default scrolling
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Start dragging immediately
+        this.draggedCell = { row, col, value: this.grid[row][col] };
+        this.touchStartCell = { row, col };
+        
+        // Get touch coordinates
+        const touch = e.touches[0];
+        this.touchStartX = touch.clientX;
+        this.touchStartY = touch.clientY;
+        
+        // Visual feedback
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        if (cell) {
+            cell.classList.add('dragging');
+        }
+    }
+    
+    handleTouchMove(e, row, col) {
+        if (!this.draggedCell) {
+            return;
+        }
+        
+        // Always prevent scrolling when dragging
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const touch = e.touches[0];
+        const x = touch.clientX;
+        const y = touch.clientY;
+        
+        // Find cell at touch point
+        const element = document.elementFromPoint(x, y);
+        let targetCell = null;
+        
+        // Try to find a cell element
+        if (element) {
+            targetCell = element.closest('.cell');
+        }
+        
+        if (targetCell && targetCell.dataset.row && targetCell.dataset.col) {
+            const targetRow = parseInt(targetCell.dataset.row);
+            const targetCol = parseInt(targetCell.dataset.col);
+            
+            // Update drag-over visual
+            if (targetRow !== this.dragOverCell?.row || targetCol !== this.dragOverCell?.col) {
+                // Remove previous drag-over
+                document.querySelectorAll('.cell.drag-over').forEach(c => {
+                    c.classList.remove('drag-over');
+                });
+                
+                // Add drag-over to new cell
+                if (targetRow !== this.draggedCell.row || targetCol !== this.draggedCell.col) {
+                    targetCell.classList.add('drag-over');
+                    this.dragOverCell = { row: targetRow, col: targetCol };
+                }
+            }
+        }
+    }
+    
+    handleTouchEnd(e, row, col) {
+        if (!this.draggedCell) {
+            return;
+        }
+        
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Remove dragging visual
+        document.querySelectorAll('.cell.dragging').forEach(c => {
+            c.classList.remove('dragging');
+        });
+        
+        // Find target cell
+        let targetRow = row;
+        let targetCol = col;
+        
+        if (e && e.changedTouches && e.changedTouches.length > 0) {
+            const touch = e.changedTouches[0];
+            const element = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (element) {
+                const targetCell = element.closest('.cell');
+                if (targetCell && targetCell.dataset.row && targetCell.dataset.col) {
+                    targetRow = parseInt(targetCell.dataset.row);
+                    targetCol = parseInt(targetCell.dataset.col);
+                } else if (this.dragOverCell) {
+                    targetRow = this.dragOverCell.row;
+                    targetCol = this.dragOverCell.col;
+                }
+            } else if (this.dragOverCell) {
+                targetRow = this.dragOverCell.row;
+                targetCol = this.dragOverCell.col;
+            }
+        } else if (this.dragOverCell) {
+            targetRow = this.dragOverCell.row;
+            targetCol = this.dragOverCell.col;
+        }
+        
+        // Perform the move
+        this.performMove(
+            this.draggedCell.row,
+            this.draggedCell.col,
+            targetRow,
+            targetCol
+        );
+        
+        // Clean up
+        this.handleDragEnd();
+        this.touchStartCell = null;
+        this.touchStartX = null;
+        this.touchStartY = null;
     }
 }
 
