@@ -305,6 +305,12 @@ body {
     animation: merge 0.5s ease;
 }
 
+.cell.swap-selected {
+    border: 3px solid #4facfe !important;
+    box-shadow: 0 0 20px rgba(79, 172, 254, 0.6) !important;
+    transform: scale(1.05);
+}
+
 @keyframes popIn {
     0% {
         transform: scale(0);
@@ -338,6 +344,162 @@ body {
     margin-top: 15px;
 }
 
+/* Power-ups Container */
+.power-ups-container {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.power-up-btn {
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    min-width: 100px;
+    position: relative;
+}
+
+.power-up-btn:hover:not(.disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.power-up-btn:active:not(.disabled) {
+    transform: translateY(0);
+}
+
+.power-up-btn.disabled {
+    background: linear-gradient(135deg, #cccccc 0%, #999999 100%);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.power-up-icon {
+    font-size: 1.5em;
+}
+
+.power-up-count {
+    font-size: 0.85em;
+    opacity: 0.9;
+}
+
+.power-up-btn.active {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+    box-shadow: 0 0 20px rgba(255, 107, 107, 0.6);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Hammer Mode Cursor */
+.game-board.hammer-mode .cell.has-number {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%23ff6b6b" d="M20.71 4.63l-1.34-1.34c-.39-.39-1.02-.39-1.41 0L9 12 12 15l8.71-8.96c.39-.39.39-1.02 0-1.41zM5 16l-2 6 6-2-4-4z"/></svg>') 12 12, auto;
+}
+
+/* Swap Mode Cursor */
+.game-board.swap-mode .cell.has-number {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="%234facfe" d="M16 17.01V10h-2v7.01h-3L15 21l4-3.99h-3zM9 3L5 6.99h3V14h2V6.99h3L9 3z"/></svg>') 12 12, auto;
+}
+
+/* Confetti Particles */
+.confetti-container {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+}
+
+.confetti-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #ff6b6b;
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.confetti-particle {
+    animation: confetti-fall 1s ease-out forwards;
+}
+
+@keyframes confetti-fall {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translate(var(--x, 0), var(--y, 200px)) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Floating Text */
+.floating-text {
+    position: absolute;
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #4ecdc4;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    z-index: 1001;
+    white-space: nowrap;
+}
+
+@keyframes float-up {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-80px) scale(1.2);
+        opacity: 0;
+    }
+}
+
+.floating-text {
+    animation: float-up 1s ease-out forwards;
+}
+
+/* Screen Shake */
+.game-board.shake {
+    animation: screen-shake 0.3s ease-in-out;
+}
+
+@keyframes screen-shake {
+    0%, 100% {
+        transform: translate(0, 0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translate(-10px, -10px) rotate(-2deg);
+    }
+    20%, 40%, 60%, 80% {
+        transform: translate(10px, 10px) rotate(2deg);
+    }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .container {
@@ -355,5 +517,15 @@ body {
     .score-container {
         flex-direction: column;
         gap: 10px;
+    }
+    
+    .power-ups-container {
+        gap: 10px;
+    }
+    
+    .power-up-btn {
+        min-width: 80px;
+        padding: 10px 15px;
+        font-size: 0.9em;
     }
 }

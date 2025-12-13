@@ -1,5 +1,5 @@
 class NumMatchGame {
-    constructor() {
+    constructor(resetGame = false) {
         this.gridSize = 4;
         this.grid = Array(this.gridSize).fill(null).map(() => Array(this.gridSize).fill(null));
         this.score = 0;
@@ -16,7 +16,23 @@ class NumMatchGame {
         this.touchStartX = null;
         this.touchStartY = null;
         
+        // Power-ups
+        this.undoHistory = [];
+        this.undoCount = 3;
+        this.hammerCount = 3;
+        this.swapCount = 3;
+        this.hammerMode = false;
+        this.swapMode = false;
+        this.swapFirstCell = null;
+        
         this.loadBestScore();
+        
+        if (resetGame) {
+            this.clearGameState();
+        } else {
+            this.loadGameState();
+        }
+        
         this.init();
     }
     
@@ -51,12 +67,39 @@ class NumMatchGame {
                 this.showMainMenu();
             });
         }
+        
+        // Power-up buttons
+        const undoBtn = document.getElementById('undoBtn');
+        if (undoBtn) {
+            undoBtn.addEventListener('click', () => {
+                this.useUndo();
+            });
+        }
+        
+        const hammerBtn = document.getElementById('hammerBtn');
+        if (hammerBtn) {
+            hammerBtn.addEventListener('click', () => {
+                this.activateHammerMode();
+            });
+        }
+        
+        const swapBtn = document.getElementById('swapBtn');
+        if (swapBtn) {
+            swapBtn.addEventListener('click', () => {
+                this.activateSwapMode();
+            });
+        }
+        
+        this.updatePowerUpButtons();
     }
     
     showMainMenu() {
         // Stop game
         clearInterval(this.spawnInterval);
         this.isPaused = false;
+        
+        // Save game state before leaving
+        this.saveGameState();
         
         // Hide game container
         document.getElementById('gameContainer').style.display = 'none';
@@ -111,6 +154,62 @@ class NumMatchGame {
         }
     }
     
+    loadGameState() {
+        const savedGrid = localStorage.getItem('numMatchGrid');
+        const savedScore = localStorage.getItem('numMatchScore');
+        const savedNextNumber = localStorage.getItem('numMatchNextNumber');
+        const savedUndoCount = localStorage.getItem('numMatchUndoCount');
+        const savedHammerCount = localStorage.getItem('numMatchHammerCount');
+        const savedSwapCount = localStorage.getItem('numMatchSwapCount');
+        
+        if (savedGrid) {
+            try {
+                this.grid = JSON.parse(savedGrid);
+            } catch (e) {
+                console.error('Error loading grid:', e);
+            }
+        }
+        
+        if (savedScore) {
+            this.score = parseInt(savedScore);
+        }
+        
+        if (savedNextNumber) {
+            this.nextNumber = parseInt(savedNextNumber);
+            this.previousNextNumber = this.nextNumber;
+        }
+        
+        if (savedUndoCount) {
+            this.undoCount = parseInt(savedUndoCount);
+        }
+        
+        if (savedHammerCount) {
+            this.hammerCount = parseInt(savedHammerCount);
+        }
+        
+        if (savedSwapCount) {
+            this.swapCount = parseInt(savedSwapCount);
+        }
+    }
+    
+    saveGameState() {
+        localStorage.setItem('numMatchGrid', JSON.stringify(this.grid));
+        localStorage.setItem('numMatchScore', this.score.toString());
+        localStorage.setItem('numMatchNextNumber', this.nextNumber.toString());
+        localStorage.setItem('numMatchUndoCount', this.undoCount.toString());
+        localStorage.setItem('numMatchHammerCount', this.hammerCount.toString());
+        localStorage.setItem('numMatchSwapCount', this.swapCount.toString());
+    }
+    
+    clearGameState() {
+        localStorage.removeItem('numMatchGrid');
+        localStorage.removeItem('numMatchScore');
+        localStorage.removeItem('numMatchNextNumber');
+        localStorage.removeItem('numMatchUndoCount');
+        localStorage.removeItem('numMatchHammerCount');
+        localStorage.removeItem('numMatchSwapCount');
+    }
+    
     createBoard() {
         const gameBoard = document.getElementById('gameBoard');
         gameBoard.innerHTML = '';
@@ -122,6 +221,19 @@ class NumMatchGame {
                 cell.dataset.row = row;
                 cell.dataset.col = col;
                 
+                // Click handler for power-ups (hammer and swap modes)
+                cell.addEventListener('click', (e) => {
+                    if (this.hammerMode) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.handleHammerClick(row, col);
+                    } else if (this.swapMode) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.handleSwapClick(row, col);
+                    }
+                });
+                
                 // Drag and drop event listeners (mouse)
                 cell.addEventListener('dragstart', (e) => this.handleDragStart(e, row, col));
                 cell.addEventListener('dragover', (e) => this.handleDragOver(e, row, col));
@@ -130,13 +242,30 @@ class NumMatchGame {
                 cell.addEventListener('dragleave', () => this.handleDragLeave(row, col));
                 
                 // Touch event listeners (mobile) - improved for better responsiveness
-                cell.addEventListener('touchstart', (e) => this.handleTouchStart(e, row, col), { passive: false });
+                cell.addEventListener('touchstart', (e) => {
+                    if (this.hammerMode || this.swapMode) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (this.hammerMode) {
+                            this.handleHammerClick(row, col);
+                        } else if (this.swapMode) {
+                            this.handleSwapClick(row, col);
+                        }
+                        return;
+                    }
+                    this.handleTouchStart(e, row, col);
+                }, { passive: false });
                 cell.addEventListener('touchmove', (e) => this.handleTouchMove(e, row, col), { passive: false });
                 cell.addEventListener('touchend', (e) => this.handleTouchEnd(e, row, col), { passive: false });
                 cell.addEventListener('touchcancel', (e) => this.handleTouchEnd(e, row, col), { passive: false });
                 
                 gameBoard.appendChild(cell);
             }
+        }
+        
+        // Update cells if game state was loaded
+        if (this.grid.some(row => row.some(cell => cell !== null))) {
+            this.updateAllCells();
         }
     }
     
@@ -185,6 +314,7 @@ class NumMatchGame {
         this.grid[row][col] = this.nextNumber;
         this.updateCellDisplay(row, col);
         this.updateDisplay();
+        this.saveGameState();
         
         this.previousNextNumber = this.nextNumber;
     }
@@ -228,6 +358,9 @@ class NumMatchGame {
             localStorage.setItem('numMatchBestScore', this.bestScore.toString());
             this.updateDisplay();
         }
+        
+        // Clear game state on game over
+        this.clearGameState();
         
         // Oyun bitti mesajı göster
         setTimeout(() => {
@@ -393,8 +526,8 @@ class NumMatchGame {
     
     // Drag and drop handlers
     handleDragStart(e, row, col) {
-        // Don't allow moves when paused
-        if (this.isPaused) {
+        // Don't allow moves when paused or in power-up modes
+        if (this.isPaused || this.hammerMode || this.swapMode) {
             e.preventDefault();
             return;
         }
@@ -443,8 +576,8 @@ class NumMatchGame {
     }
     
     performMove(sourceRow, sourceCol, targetRow, targetCol) {
-        // Don't allow moves when paused
-        if (this.isPaused) {
+        // Don't allow moves when paused or in power-up modes
+        if (this.isPaused || this.hammerMode || this.swapMode) {
             return;
         }
         
@@ -457,6 +590,9 @@ class NumMatchGame {
         
         if (sourceValue === null) return;
         
+        // Save state for undo before making move
+        this.saveStateForUndo();
+        
         // Hedef hücre boşsa veya aynı değere sahipse birleştir
         if (targetValue === null || targetValue === sourceValue) {
             if (targetValue === null) {
@@ -466,6 +602,7 @@ class NumMatchGame {
             } else {
                 // Aynı değerleri birleştir ve topla
                 const newValue = sourceValue + targetValue;
+                const pointsEarned = newValue;
                 this.grid[targetRow][targetCol] = newValue;
                 this.grid[sourceRow][sourceCol] = null;
                 
@@ -475,11 +612,21 @@ class NumMatchGame {
                 setTimeout(() => {
                     cell.classList.remove('merge-animation');
                 }, 500);
+                
+                // Visual effects for merge
+                this.createConfetti(targetRow, targetCol);
+                this.createFloatingText(targetRow, targetCol, `+${this.formatNumber(pointsEarned)}`);
+                
+                // Screen shake for 512+
+                if (newValue >= 512) {
+                    this.screenShake();
+                }
             }
             
             this.updateCellDisplay(targetRow, targetCol);
             this.updateCellDisplay(sourceRow, sourceCol);
             this.updateDisplay();
+            this.saveGameState();
             
             // Check if game is over after move (tüm hücreler doldu mu?)
             setTimeout(() => {
@@ -504,8 +651,8 @@ class NumMatchGame {
     
     // Touch event handlers for mobile - simplified and improved
     handleTouchStart(e, row, col) {
-        // Don't allow moves when paused
-        if (this.isPaused) {
+        // Don't allow moves when paused or in power-up modes
+        if (this.isPaused || this.hammerMode || this.swapMode) {
             return;
         }
         
@@ -630,6 +777,228 @@ class NumMatchGame {
         this.touchStartX = null;
         this.touchStartY = null;
     }
+    
+    // Visual Effects
+    createConfetti(row, col) {
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        if (!cell) return;
+        
+        const rect = cell.getBoundingClientRect();
+        const gameBoard = document.getElementById('gameBoard');
+        const boardRect = gameBoard.getBoundingClientRect();
+        
+        const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff9ff3', '#54a0ff', '#5f27cd'];
+        const particleCount = 12;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'confetti-particle';
+            particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.left = (rect.left - boardRect.left + rect.width / 2) + 'px';
+            particle.style.top = (rect.top - boardRect.top + rect.height / 2) + 'px';
+            
+            const angle = (Math.PI * 2 * i) / particleCount;
+            const distance = 50 + Math.random() * 50;
+            const x = Math.cos(angle) * distance;
+            const y = Math.sin(angle) * distance;
+            
+            particle.style.setProperty('--x', x + 'px');
+            particle.style.setProperty('--y', (y + 200) + 'px');
+            
+            gameBoard.appendChild(particle);
+            
+            setTimeout(() => {
+                particle.remove();
+            }, 1000);
+        }
+    }
+    
+    createFloatingText(row, col, text) {
+        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        if (!cell) return;
+        
+        const rect = cell.getBoundingClientRect();
+        const gameBoard = document.getElementById('gameBoard');
+        const boardRect = gameBoard.getBoundingClientRect();
+        
+        const floatingText = document.createElement('div');
+        floatingText.className = 'floating-text';
+        floatingText.textContent = text;
+        floatingText.style.left = (rect.left - boardRect.left + rect.width / 2) + 'px';
+        floatingText.style.top = (rect.top - boardRect.top + rect.height / 2) + 'px';
+        floatingText.style.transform = 'translate(-50%, -50%)';
+        
+        gameBoard.appendChild(floatingText);
+        
+        setTimeout(() => {
+            floatingText.remove();
+        }, 1000);
+    }
+    
+    screenShake() {
+        const gameBoard = document.getElementById('gameBoard');
+        gameBoard.classList.add('shake');
+        setTimeout(() => {
+            gameBoard.classList.remove('shake');
+        }, 300);
+    }
+    
+    // Power-ups
+    saveStateForUndo() {
+        // Deep copy grid
+        const gridCopy = this.grid.map(row => [...row]);
+        this.undoHistory.push({
+            grid: gridCopy,
+            score: this.score,
+            nextNumber: this.nextNumber,
+            previousNextNumber: this.previousNextNumber
+        });
+        
+        // Limit undo history to last 10 moves
+        if (this.undoHistory.length > 10) {
+            this.undoHistory.shift();
+        }
+    }
+    
+    useUndo() {
+        if (this.undoCount <= 0 || this.undoHistory.length === 0) {
+            return;
+        }
+        
+        const previousState = this.undoHistory.pop();
+        this.grid = previousState.grid.map(row => [...row]);
+        this.score = previousState.score;
+        this.nextNumber = previousState.nextNumber;
+        this.previousNextNumber = previousState.previousNextNumber;
+        
+        this.undoCount--;
+        this.updatePowerUpButtons();
+        this.updateAllCells();
+        this.updateDisplay();
+        this.saveGameState();
+    }
+    
+    activateHammerMode() {
+        if (this.hammerCount <= 0 || this.hammerMode) {
+            return;
+        }
+        
+        this.hammerMode = true;
+        this.swapMode = false;
+        this.swapFirstCell = null;
+        const gameBoard = document.getElementById('gameBoard');
+        gameBoard.classList.add('hammer-mode');
+        gameBoard.classList.remove('swap-mode');
+        this.updatePowerUpButtons();
+    }
+    
+    activateSwapMode() {
+        if (this.swapCount <= 0 || this.swapMode) {
+            return;
+        }
+        
+        this.swapMode = true;
+        this.hammerMode = false;
+        this.swapFirstCell = null;
+        const gameBoard = document.getElementById('gameBoard');
+        gameBoard.classList.add('swap-mode');
+        gameBoard.classList.remove('hammer-mode');
+        this.updatePowerUpButtons();
+    }
+    
+    handleHammerClick(row, col) {
+        if (!this.hammerMode || this.grid[row][col] === null) {
+            return;
+        }
+        
+        this.saveStateForUndo();
+        this.grid[row][col] = null;
+        this.updateCellDisplay(row, col);
+        this.updateDisplay();
+        this.saveGameState();
+        
+        this.hammerCount--;
+        this.hammerMode = false;
+        const gameBoard = document.getElementById('gameBoard');
+        gameBoard.classList.remove('hammer-mode');
+        this.updatePowerUpButtons();
+    }
+    
+    handleSwapClick(row, col) {
+        if (!this.swapMode || this.grid[row][col] === null) {
+            return;
+        }
+        
+        if (this.swapFirstCell === null) {
+            this.swapFirstCell = { row, col };
+            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+            cell.classList.add('swap-selected');
+        } else {
+            if (this.swapFirstCell.row === row && this.swapFirstCell.col === col) {
+                // Same cell clicked, cancel
+                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+                cell.classList.remove('swap-selected');
+                this.swapFirstCell = null;
+                return;
+            }
+            
+            // Perform swap
+            this.saveStateForUndo();
+            const temp = this.grid[this.swapFirstCell.row][this.swapFirstCell.col];
+            this.grid[this.swapFirstCell.row][this.swapFirstCell.col] = this.grid[row][col];
+            this.grid[row][col] = temp;
+            
+            // Reset first cell styling
+            const firstCell = document.querySelector(`[data-row="${this.swapFirstCell.row}"][data-col="${this.swapFirstCell.col}"]`);
+            firstCell.classList.remove('swap-selected');
+            
+            this.updateCellDisplay(this.swapFirstCell.row, this.swapFirstCell.col);
+            this.updateCellDisplay(row, col);
+            this.updateDisplay();
+            this.saveGameState();
+            
+            this.swapCount--;
+            this.swapMode = false;
+            this.swapFirstCell = null;
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.classList.remove('swap-mode');
+            this.updatePowerUpButtons();
+        }
+    }
+    
+    updatePowerUpButtons() {
+        const undoBtn = document.getElementById('undoBtn');
+        const hammerBtn = document.getElementById('hammerBtn');
+        const swapBtn = document.getElementById('swapBtn');
+        
+        if (undoBtn) {
+            const undoCountEl = document.getElementById('undoCount');
+            if (undoCountEl) undoCountEl.textContent = this.undoCount;
+            undoBtn.classList.toggle('disabled', this.undoCount <= 0 || this.undoHistory.length === 0);
+        }
+        
+        if (hammerBtn) {
+            const hammerCountEl = document.getElementById('hammerCount');
+            if (hammerCountEl) hammerCountEl.textContent = this.hammerCount;
+            hammerBtn.classList.toggle('disabled', this.hammerCount <= 0);
+            hammerBtn.classList.toggle('active', this.hammerMode);
+        }
+        
+        if (swapBtn) {
+            const swapCountEl = document.getElementById('swapCount');
+            if (swapCountEl) swapCountEl.textContent = this.swapCount;
+            swapBtn.classList.toggle('disabled', this.swapCount <= 0);
+            swapBtn.classList.toggle('active', this.swapMode);
+        }
+    }
+    
+    updateAllCells() {
+        for (let row = 0; row < this.gridSize; row++) {
+            for (let col = 0; col < this.gridSize; col++) {
+                this.updateCellDisplay(row, col);
+            }
+        }
+    }
 }
 
 // Global game instance
@@ -655,7 +1024,7 @@ function startGame() {
         }
         gameContainer.style.display = 'flex';
         
-        // Create new game
+        // Create new game (will load saved state if exists)
         if (currentGame) {
             if (currentGame.spawnInterval) {
                 clearInterval(currentGame.spawnInterval);
@@ -663,7 +1032,10 @@ function startGame() {
         }
         
         console.log('Creating new game...');
-        currentGame = new NumMatchGame();
+        // Check if user wants to start fresh or continue saved game
+        const hasSavedGame = localStorage.getItem('numMatchGrid') !== null;
+        // For now, always load saved game if exists. User can manually clear localStorage if needed.
+        currentGame = new NumMatchGame(false);
         console.log('Game created successfully');
     } catch (error) {
         console.error('Error in startGame:', error);
