@@ -95,17 +95,27 @@ export function saveBestScore(score) {
 }
 
 export function loadGameState() {
-  const savedGrid = localStorage.getItem('numMatchGrid');
-  const savedScore = localStorage.getItem('numMatchScore');
-  const savedNextNumber = localStorage.getItem('numMatchNextNumber');
-  const savedHammerCount = localStorage.getItem('numMatchHammerCount');
-  
-  return {
-    grid: savedGrid ? JSON.parse(savedGrid) : null,
-    score: savedScore ? parseInt(savedScore) : null,
-    nextNumber: savedNextNumber ? parseInt(savedNextNumber) : null,
-    hammerCount: savedHammerCount ? parseInt(savedHammerCount) : null,
-  };
+  try {
+    const savedGrid = localStorage.getItem('numMatchGrid');
+    const savedScore = localStorage.getItem('numMatchScore');
+    const savedNextNumber = localStorage.getItem('numMatchNextNumber');
+    const savedHammerCount = localStorage.getItem('numMatchHammerCount');
+    
+    return {
+      grid: savedGrid ? JSON.parse(savedGrid) : null,
+      score: savedScore ? parseInt(savedScore) : null,
+      nextNumber: savedNextNumber ? parseInt(savedNextNumber) : null,
+      hammerCount: savedHammerCount ? parseInt(savedHammerCount) : null,
+    };
+  } catch (error) {
+    console.error('Error loading game state:', error);
+    return {
+      grid: null,
+      score: null,
+      nextNumber: null,
+      hammerCount: null,
+    };
+  }
 }
 
 export function saveGameState(grid, score, nextNumber, hammerCount) {

@@ -20,6 +20,8 @@ export default {
         'float-up': 'floatUp 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
         'screen-shake': 'screenShake 0.3s ease-in-out',
         'confetti-fall': 'confettiFall 0.8s ease-out forwards',
+        'fade-in': 'fadeIn 0.5s ease',
+        'slide-in': 'slideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
       keyframes: {
         popIn: {
@@ -46,6 +48,14 @@ export default {
         confettiFall: {
           '0%': { transform: 'translate(0, 0) rotate(0deg)', opacity: '1' },
           '100%': { transform: 'translate(var(--x, 0), var(--y, 150px)) rotate(180deg)', opacity: '0' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideIn: {
+          '0%': { transform: 'scale(0.5) translateY(-50px)', opacity: '0' },
+          '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
         },
       },
     },

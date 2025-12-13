@@ -10,12 +10,17 @@ export default function StartScreen({ onStartGame }) {
   }, []);
 
   const handleStartClick = () => {
-    const savedGrid = localStorage.getItem('numMatchGrid');
-    const hasSavedGame = savedGrid && JSON.parse(savedGrid).some(row => row.some(cell => cell !== null));
-    
-    if (hasSavedGame) {
-      setShowDialog(true);
-    } else {
+    try {
+      const savedGrid = localStorage.getItem('numMatchGrid');
+      const hasSavedGame = savedGrid && JSON.parse(savedGrid).some(row => row.some(cell => cell !== null));
+      
+      if (hasSavedGame) {
+        setShowDialog(true);
+      } else {
+        onStartGame(false);
+      }
+    } catch (error) {
+      console.error('Error checking saved game:', error);
       onStartGame(false);
     }
   };

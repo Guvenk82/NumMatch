@@ -15,26 +15,46 @@ import {
 
 export function useGameLogic(resetGame = false) {
   const [grid, setGrid] = useState(() => {
-    const saved = loadGameState();
-    if (!resetGame && saved.grid) {
-      return saved.grid;
+    try {
+      const saved = loadGameState();
+      if (!resetGame && saved.grid && Array.isArray(saved.grid)) {
+        return saved.grid;
+      }
+    } catch (error) {
+      console.error('Error loading grid:', error);
     }
     return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
   });
 
   const [score, setScore] = useState(() => {
-    const saved = loadGameState();
-    if (!resetGame && saved.score !== null) {
-      return saved.score;
+    try {
+      const saved = loadGameState();
+      if (!resetGame && saved.score !== null && !isNaN(saved.score)) {
+        return saved.score;
+      }
+    } catch (error) {
+      console.error('Error loading score:', error);
     }
     return 0;
   });
 
-  const [bestScore, setBestScore] = useState(loadBestScore());
+  const [bestScore, setBestScore] = useState(() => {
+    try {
+      return loadBestScore();
+    } catch (error) {
+      console.error('Error loading best score:', error);
+      return 0;
+    }
+  });
+  
   const [nextNumber, setNextNumber] = useState(() => {
-    const saved = loadGameState();
-    if (!resetGame && saved.nextNumber !== null) {
-      return saved.nextNumber;
+    try {
+      const saved = loadGameState();
+      if (!resetGame && saved.nextNumber !== null && !isNaN(saved.nextNumber)) {
+        return saved.nextNumber;
+      }
+    } catch (error) {
+      console.error('Error loading next number:', error);
     }
     return 1;
   });
@@ -42,9 +62,13 @@ export function useGameLogic(resetGame = false) {
   const [previousNextNumber, setPreviousNextNumber] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const [hammerCount, setHammerCount] = useState(() => {
-    const saved = loadGameState();
-    if (!resetGame && saved.hammerCount !== null) {
-      return saved.hammerCount;
+    try {
+      const saved = loadGameState();
+      if (!resetGame && saved.hammerCount !== null && !isNaN(saved.hammerCount)) {
+        return saved.hammerCount;
+      }
+    } catch (error) {
+      console.error('Error loading hammer count:', error);
     }
     return 3;
   });
@@ -223,14 +247,41 @@ export function useGameLogic(resetGame = false) {
     setHammerMode(true);
   }, [hammerCount, hammerMode]);
 
+  // Initialize spawning on mount
   useEffect(() => {
-    startSpawning();
+    if (!isPaused && spawnIntervalRef.current === null) {
+      spawnNumber();
+      spawnIntervalRef.current = setInterval(() => {
+        if (!isPaused) {
+          spawnNumber();
+        }
+      }, SPAWN_DELAY);
+    }
+    
     return () => {
       if (spawnIntervalRef.current) {
         clearInterval(spawnIntervalRef.current);
+        spawnIntervalRef.current = null;
       }
     };
-  }, [startSpawning]);
+  }, []);
+
+  // Handle pause/unpause
+  useEffect(() => {
+    if (isPaused) {
+      if (spawnIntervalRef.current) {
+        clearInterval(spawnIntervalRef.current);
+        spawnIntervalRef.current = null;
+      }
+    } else {
+      if (spawnIntervalRef.current === null) {
+        spawnNumber();
+        spawnIntervalRef.current = setInterval(() => {
+          spawnNumber();
+        }, SPAWN_DELAY);
+      }
+    }
+  }, [isPaused, spawnNumber]);
 
   return {
     grid,
