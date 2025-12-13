@@ -17,13 +17,8 @@ class NumMatchGame {
         this.touchStartY = null;
         
         // Power-ups
-        this.undoHistory = [];
-        this.undoCount = 3;
         this.hammerCount = 3;
-        this.swapCount = 3;
         this.hammerMode = false;
-        this.swapMode = false;
-        this.swapFirstCell = null;
         
         this.loadBestScore();
         
@@ -69,13 +64,6 @@ class NumMatchGame {
         }
         
         // Power-up buttons
-        const undoBtn = document.getElementById('undoBtn');
-        if (undoBtn) {
-            undoBtn.addEventListener('click', () => {
-                this.useUndo();
-            });
-        }
-        
         const hammerBtn = document.getElementById('hammerBtn');
         if (hammerBtn) {
             hammerBtn.addEventListener('click', () => {
@@ -83,22 +71,60 @@ class NumMatchGame {
             });
         }
         
-        const swapBtn = document.getElementById('swapBtn');
-        if (swapBtn) {
-            swapBtn.addEventListener('click', () => {
-                this.activateSwapMode();
-            });
-        }
-        
         this.updatePowerUpButtons();
     }
     
     showMainMenu() {
+        // Check if there's a saved game
+        const hasSavedGame = localStorage.getItem('numMatchGrid') !== null && 
+                            JSON.parse(localStorage.getItem('numMatchGrid')).some(row => row.some(cell => cell !== null));
+        
+        if (hasSavedGame) {
+            // Show confirmation dialog
+            this.showConfirmDialog();
+        } else {
+            // No saved game, go directly to menu
+            this.goToMainMenu();
+        }
+    }
+    
+    showConfirmDialog() {
+        const dialog = document.getElementById('confirmDialog');
+        if (dialog) {
+            dialog.style.display = 'flex';
+            
+            const continueBtn = document.getElementById('continueBtn');
+            const restartBtn = document.getElementById('restartBtn');
+            
+            if (continueBtn) {
+                continueBtn.onclick = () => {
+                    dialog.style.display = 'none';
+                    // Just hide the menu button click, game continues
+                };
+            }
+            
+            if (restartBtn) {
+                restartBtn.onclick = () => {
+                    dialog.style.display = 'none';
+                    this.clearGameState();
+                    // Restart game
+                    if (currentGame) {
+                        if (currentGame.spawnInterval) {
+                            clearInterval(currentGame.spawnInterval);
+                        }
+                    }
+                    currentGame = new NumMatchGame(true);
+                };
+            }
+        }
+    }
+    
+    goToMainMenu() {
         // Stop game
         clearInterval(this.spawnInterval);
         this.isPaused = false;
         
-        // Save game state before leaving
+        // Save game state before leaving (if not restarting)
         this.saveGameState();
         
         // Hide game container
@@ -158,9 +184,7 @@ class NumMatchGame {
         const savedGrid = localStorage.getItem('numMatchGrid');
         const savedScore = localStorage.getItem('numMatchScore');
         const savedNextNumber = localStorage.getItem('numMatchNextNumber');
-        const savedUndoCount = localStorage.getItem('numMatchUndoCount');
         const savedHammerCount = localStorage.getItem('numMatchHammerCount');
-        const savedSwapCount = localStorage.getItem('numMatchSwapCount');
         
         if (savedGrid) {
             try {
@@ -179,16 +203,8 @@ class NumMatchGame {
             this.previousNextNumber = this.nextNumber;
         }
         
-        if (savedUndoCount) {
-            this.undoCount = parseInt(savedUndoCount);
-        }
-        
         if (savedHammerCount) {
             this.hammerCount = parseInt(savedHammerCount);
-        }
-        
-        if (savedSwapCount) {
-            this.swapCount = parseInt(savedSwapCount);
         }
     }
     
@@ -196,18 +212,14 @@ class NumMatchGame {
         localStorage.setItem('numMatchGrid', JSON.stringify(this.grid));
         localStorage.setItem('numMatchScore', this.score.toString());
         localStorage.setItem('numMatchNextNumber', this.nextNumber.toString());
-        localStorage.setItem('numMatchUndoCount', this.undoCount.toString());
         localStorage.setItem('numMatchHammerCount', this.hammerCount.toString());
-        localStorage.setItem('numMatchSwapCount', this.swapCount.toString());
     }
     
     clearGameState() {
         localStorage.removeItem('numMatchGrid');
         localStorage.removeItem('numMatchScore');
         localStorage.removeItem('numMatchNextNumber');
-        localStorage.removeItem('numMatchUndoCount');
         localStorage.removeItem('numMatchHammerCount');
-        localStorage.removeItem('numMatchSwapCount');
     }
     
     createBoard() {
@@ -221,16 +233,12 @@ class NumMatchGame {
                 cell.dataset.row = row;
                 cell.dataset.col = col;
                 
-                // Click handler for power-ups (hammer and swap modes)
+                // Click handler for power-ups (hammer mode)
                 cell.addEventListener('click', (e) => {
                     if (this.hammerMode) {
                         e.preventDefault();
                         e.stopPropagation();
                         this.handleHammerClick(row, col);
-                    } else if (this.swapMode) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        this.handleSwapClick(row, col);
                     }
                 });
                 
@@ -243,14 +251,10 @@ class NumMatchGame {
                 
                 // Touch event listeners (mobile) - improved for better responsiveness
                 cell.addEventListener('touchstart', (e) => {
-                    if (this.hammerMode || this.swapMode) {
+                    if (this.hammerMode) {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (this.hammerMode) {
-                            this.handleHammerClick(row, col);
-                        } else if (this.swapMode) {
-                            this.handleSwapClick(row, col);
-                        }
+                        this.handleHammerClick(row, col);
                         return;
                     }
                     this.handleTouchStart(e, row, col);
@@ -527,7 +531,7 @@ class NumMatchGame {
     // Drag and drop handlers
     handleDragStart(e, row, col) {
         // Don't allow moves when paused or in power-up modes
-        if (this.isPaused || this.hammerMode || this.swapMode) {
+        if (this.isPaused || this.hammerMode) {
             e.preventDefault();
             return;
         }
@@ -577,7 +581,7 @@ class NumMatchGame {
     
     performMove(sourceRow, sourceCol, targetRow, targetCol) {
         // Don't allow moves when paused or in power-up modes
-        if (this.isPaused || this.hammerMode || this.swapMode) {
+        if (this.isPaused || this.hammerMode) {
             return;
         }
         
@@ -589,9 +593,6 @@ class NumMatchGame {
         const targetValue = this.grid[targetRow][targetCol];
         
         if (sourceValue === null) return;
-        
-        // Save state for undo before making move
-        this.saveStateForUndo();
         
         // Hedef hücre boşsa veya aynı değere sahipse birleştir
         if (targetValue === null || targetValue === sourceValue) {
@@ -652,7 +653,7 @@ class NumMatchGame {
     // Touch event handlers for mobile - simplified and improved
     handleTouchStart(e, row, col) {
         // Don't allow moves when paused or in power-up modes
-        if (this.isPaused || this.hammerMode || this.swapMode) {
+        if (this.isPaused || this.hammerMode) {
             return;
         }
         
@@ -778,7 +779,7 @@ class NumMatchGame {
         this.touchStartY = null;
     }
     
-    // Visual Effects
+    // Visual Effects - Simplified
     createConfetti(row, col) {
         const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
         if (!cell) return;
@@ -787,8 +788,8 @@ class NumMatchGame {
         const gameBoard = document.getElementById('gameBoard');
         const boardRect = gameBoard.getBoundingClientRect();
         
-        const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#ff9ff3', '#54a0ff', '#5f27cd'];
-        const particleCount = 12;
+        const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
+        const particleCount = 6; // Reduced from 12
         
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
@@ -798,18 +799,18 @@ class NumMatchGame {
             particle.style.top = (rect.top - boardRect.top + rect.height / 2) + 'px';
             
             const angle = (Math.PI * 2 * i) / particleCount;
-            const distance = 50 + Math.random() * 50;
+            const distance = 30 + Math.random() * 30; // Reduced distance
             const x = Math.cos(angle) * distance;
             const y = Math.sin(angle) * distance;
             
             particle.style.setProperty('--x', x + 'px');
-            particle.style.setProperty('--y', (y + 200) + 'px');
+            particle.style.setProperty('--y', (y + 150) + 'px');
             
             gameBoard.appendChild(particle);
             
             setTimeout(() => {
                 particle.remove();
-            }, 1000);
+            }, 800);
         }
     }
     
@@ -844,65 +845,14 @@ class NumMatchGame {
     }
     
     // Power-ups
-    saveStateForUndo() {
-        // Deep copy grid
-        const gridCopy = this.grid.map(row => [...row]);
-        this.undoHistory.push({
-            grid: gridCopy,
-            score: this.score,
-            nextNumber: this.nextNumber,
-            previousNextNumber: this.previousNextNumber
-        });
-        
-        // Limit undo history to last 10 moves
-        if (this.undoHistory.length > 10) {
-            this.undoHistory.shift();
-        }
-    }
-    
-    useUndo() {
-        if (this.undoCount <= 0 || this.undoHistory.length === 0) {
-            return;
-        }
-        
-        const previousState = this.undoHistory.pop();
-        this.grid = previousState.grid.map(row => [...row]);
-        this.score = previousState.score;
-        this.nextNumber = previousState.nextNumber;
-        this.previousNextNumber = previousState.previousNextNumber;
-        
-        this.undoCount--;
-        this.updatePowerUpButtons();
-        this.updateAllCells();
-        this.updateDisplay();
-        this.saveGameState();
-    }
-    
     activateHammerMode() {
         if (this.hammerCount <= 0 || this.hammerMode) {
             return;
         }
         
         this.hammerMode = true;
-        this.swapMode = false;
-        this.swapFirstCell = null;
         const gameBoard = document.getElementById('gameBoard');
         gameBoard.classList.add('hammer-mode');
-        gameBoard.classList.remove('swap-mode');
-        this.updatePowerUpButtons();
-    }
-    
-    activateSwapMode() {
-        if (this.swapCount <= 0 || this.swapMode) {
-            return;
-        }
-        
-        this.swapMode = true;
-        this.hammerMode = false;
-        this.swapFirstCell = null;
-        const gameBoard = document.getElementById('gameBoard');
-        gameBoard.classList.add('swap-mode');
-        gameBoard.classList.remove('hammer-mode');
         this.updatePowerUpButtons();
     }
     
@@ -911,7 +861,6 @@ class NumMatchGame {
             return;
         }
         
-        this.saveStateForUndo();
         this.grid[row][col] = null;
         this.updateCellDisplay(row, col);
         this.updateDisplay();
@@ -924,71 +873,14 @@ class NumMatchGame {
         this.updatePowerUpButtons();
     }
     
-    handleSwapClick(row, col) {
-        if (!this.swapMode || this.grid[row][col] === null) {
-            return;
-        }
-        
-        if (this.swapFirstCell === null) {
-            this.swapFirstCell = { row, col };
-            const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-            cell.classList.add('swap-selected');
-        } else {
-            if (this.swapFirstCell.row === row && this.swapFirstCell.col === col) {
-                // Same cell clicked, cancel
-                const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-                cell.classList.remove('swap-selected');
-                this.swapFirstCell = null;
-                return;
-            }
-            
-            // Perform swap
-            this.saveStateForUndo();
-            const temp = this.grid[this.swapFirstCell.row][this.swapFirstCell.col];
-            this.grid[this.swapFirstCell.row][this.swapFirstCell.col] = this.grid[row][col];
-            this.grid[row][col] = temp;
-            
-            // Reset first cell styling
-            const firstCell = document.querySelector(`[data-row="${this.swapFirstCell.row}"][data-col="${this.swapFirstCell.col}"]`);
-            firstCell.classList.remove('swap-selected');
-            
-            this.updateCellDisplay(this.swapFirstCell.row, this.swapFirstCell.col);
-            this.updateCellDisplay(row, col);
-            this.updateDisplay();
-            this.saveGameState();
-            
-            this.swapCount--;
-            this.swapMode = false;
-            this.swapFirstCell = null;
-            const gameBoard = document.getElementById('gameBoard');
-            gameBoard.classList.remove('swap-mode');
-            this.updatePowerUpButtons();
-        }
-    }
-    
     updatePowerUpButtons() {
-        const undoBtn = document.getElementById('undoBtn');
         const hammerBtn = document.getElementById('hammerBtn');
-        const swapBtn = document.getElementById('swapBtn');
-        
-        if (undoBtn) {
-            const undoCountEl = document.getElementById('undoCount');
-            if (undoCountEl) undoCountEl.textContent = this.undoCount;
-            undoBtn.classList.toggle('disabled', this.undoCount <= 0 || this.undoHistory.length === 0);
-        }
         
         if (hammerBtn) {
             const hammerCountEl = document.getElementById('hammerCount');
             if (hammerCountEl) hammerCountEl.textContent = this.hammerCount;
             hammerBtn.classList.toggle('disabled', this.hammerCount <= 0);
             hammerBtn.classList.toggle('active', this.hammerMode);
-        }
-        
-        if (swapBtn) {
-            const swapCountEl = document.getElementById('swapCount');
-            if (swapCountEl) swapCountEl.textContent = this.swapCount;
-            swapBtn.classList.toggle('disabled', this.swapCount <= 0);
-            swapBtn.classList.toggle('active', this.swapMode);
         }
     }
     
@@ -1004,7 +896,7 @@ class NumMatchGame {
 // Global game instance
 let currentGame = null;
 
-function startGame() {
+function startGame(resetGame = false) {
     try {
         console.log('startGame called');
         
@@ -1024,7 +916,7 @@ function startGame() {
         }
         gameContainer.style.display = 'flex';
         
-        // Create new game (will load saved state if exists)
+        // Create new game
         if (currentGame) {
             if (currentGame.spawnInterval) {
                 clearInterval(currentGame.spawnInterval);
@@ -1032,10 +924,7 @@ function startGame() {
         }
         
         console.log('Creating new game...');
-        // Check if user wants to start fresh or continue saved game
-        const hasSavedGame = localStorage.getItem('numMatchGrid') !== null;
-        // For now, always load saved game if exists. User can manually clear localStorage if needed.
-        currentGame = new NumMatchGame(false);
+        currentGame = new NumMatchGame(resetGame);
         console.log('Game created successfully');
     } catch (error) {
         console.error('Error in startGame:', error);
@@ -1102,11 +991,58 @@ window.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 e.stopPropagation();
                 console.log('Start button clicked');
-                startGame();
+                
+                // Check if there's a saved game
+                const savedGrid = localStorage.getItem('numMatchGrid');
+                const hasSavedGame = savedGrid !== null && 
+                                    JSON.parse(savedGrid).some(row => row.some(cell => cell !== null));
+                
+                if (hasSavedGame) {
+                    // Show confirmation dialog
+                    const dialog = document.getElementById('confirmDialog');
+                    if (dialog) {
+                        dialog.style.display = 'flex';
+                        
+                        const continueBtn = document.getElementById('continueBtn');
+                        const restartBtn = document.getElementById('restartBtn');
+                        
+                        if (continueBtn) {
+                            continueBtn.onclick = () => {
+                                dialog.style.display = 'none';
+                                startGame(false); // Continue saved game
+                            };
+                        }
+                        
+                        if (restartBtn) {
+                            restartBtn.onclick = () => {
+                                dialog.style.display = 'none';
+                                startGame(true); // Start fresh
+                            };
+                        }
+                    } else {
+                        // Dialog not found, start normally
+                        startGame(false);
+                    }
+                } else {
+                    // No saved game, start normally
+                    startGame(false);
+                }
             });
         } else {
             console.error('startGameBtn not found');
         }
+        
+        // Handle page unload (beforeunload)
+        window.addEventListener('beforeunload', (e) => {
+            const savedGrid = localStorage.getItem('numMatchGrid');
+            const hasSavedGame = savedGrid !== null && 
+                                JSON.parse(savedGrid).some(row => row.some(cell => cell !== null));
+            
+            if (hasSavedGame && currentGame) {
+                // Save game state before leaving
+                currentGame.saveGameState();
+            }
+        });
         
         // Prevent zoom on double tap and scrolling (iOS/Android)
         let lastTouchEnd = 0;

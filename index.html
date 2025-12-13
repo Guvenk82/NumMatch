@@ -26,7 +26,7 @@
     <!-- Start Screen -->
     <div id="startScreen" class="start-screen">
         <div class="start-content">
-            <h1 class="start-title">NumMatch</h1>
+            <h1 class="start-title">NumMatch <span class="version">v0.2</span></h1>
             <div class="best-score-display">
                 <div class="best-score-label">En Yüksek Skor</div>
                 <div class="best-score-value" id="startBestScore">0</div>
@@ -47,7 +47,7 @@
                         Ana Menü
                     </button>
                 </div>
-                <h1>NumMatch</h1>
+                <h1>NumMatch <span class="version">v0.2</span></h1>
                 <div class="score-container">
                     <div class="score">Skor: <span id="score">0</span></div>
                     <div class="best-score">En Yüksek: <span id="bestScore">0</span></div>
@@ -60,25 +60,27 @@
             </div>
             
             <div class="power-ups-container">
-                <button id="undoBtn" class="power-up-btn" title="Geri Al">
-                    <span class="power-up-icon">↶</span>
-                    <span class="power-up-label">Geri Al</span>
-                    <span class="power-up-count" id="undoCount">3</span>
-                </button>
                 <button id="hammerBtn" class="power-up-btn" title="Çekiç">
                     <span class="power-up-icon">🔨</span>
                     <span class="power-up-label">Çekiç</span>
                     <span class="power-up-count" id="hammerCount">3</span>
                 </button>
-                <button id="swapBtn" class="power-up-btn" title="Yer Değiştir">
-                    <span class="power-up-icon">⇄</span>
-                    <span class="power-up-label">Yer Değiştir</span>
-                    <span class="power-up-count" id="swapCount">3</span>
-                </button>
             </div>
             
             <div class="instructions">
                 <p>Sayıları sürükleyerek birleştirin ve toplayın!</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Confirmation Dialog -->
+    <div id="confirmDialog" class="confirm-dialog" style="display: none;">
+        <div class="confirm-content">
+            <h2>Oyun Devam Ediyor</h2>
+            <p>Kaydedilmiş bir oyununuz var. Ne yapmak istersiniz?</p>
+            <div class="confirm-buttons">
+                <button id="continueBtn" class="confirm-btn continue-btn">Devam Et</button>
+                <button id="restartBtn" class="confirm-btn restart-btn">Baştan Başla</button>
             </div>
         </div>
     </div>
