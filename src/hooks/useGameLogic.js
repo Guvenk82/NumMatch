@@ -249,7 +249,7 @@ export function useGameLogic(resetGame = false) {
 
   // Initialize spawning on mount
   useEffect(() => {
-    if (!isPaused && spawnIntervalRef.current === null) {
+    if (!isPaused) {
       spawnNumber();
       spawnIntervalRef.current = setInterval(() => {
         if (!isPaused) {
@@ -257,13 +257,14 @@ export function useGameLogic(resetGame = false) {
         }
       }, SPAWN_DELAY);
     }
-    
+
     return () => {
       if (spawnIntervalRef.current) {
         clearInterval(spawnIntervalRef.current);
         spawnIntervalRef.current = null;
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle pause/unpause
@@ -281,7 +282,8 @@ export function useGameLogic(resetGame = false) {
         }, SPAWN_DELAY);
       }
     }
-  }, [isPaused, spawnNumber]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPaused]);
 
   return {
     grid,
